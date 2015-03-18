@@ -36,8 +36,8 @@ func TestServer(t *testing.T) {
 
 func setUp(t *testing.T) *Server {
 	handlers := map[string]func (http.ResponseWriter, *http.Request){
-		apis[1].path : HandlerApi(apis[1].payload),
-		apis[2].path : HandlerApi(apis[2].payload),
+		apis[api_v1].path : HandlerApi(apis[api_v1].payload),
+		apis[api_v2].path : HandlerApi(apis[api_v2].payload),
 	}
 
 	u, err := url.Parse(endpoint)
