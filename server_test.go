@@ -5,23 +5,39 @@ import (
 	"testing"
 	"net/url"
 	"io/ioutil"
-	"fmt"
 )
 
 const (
-	endpoint = "http://localhost:8081/tests/events"
-	payload = `{"message": {"id": 1, "name": "Mike"}}`
+	endpoint = "http://localhost:8081/"
+	api_v1 = 1
+	api_v2 = 2
 )
+
+// Endpoint
+type api struct {
+	path    string
+	payload string
+}
+
+var apis = map[int]api{
+	api_v1: api{"/api/v1", `{"message":"api.v1"}`},
+	api_v2: api{"/api/v2", `{"message":"api.v2"}`},
+}
 
 func TestServer(t *testing.T) {
 	srv := setUp(t)
 	defer tearDown(srv)
-	checkApi(t)
+	
+	// Check apis
+	for k, _ := range apis {
+		checkApi(t, k)
+	}
 }
 
 func setUp(t *testing.T) *Server {
 	handlers := map[string]func (http.ResponseWriter, *http.Request){
-		"/" : getHandlers(t),
+		apis[1].path : HandlerApi(apis[1].payload),
+		apis[2].path : HandlerApi(apis[2].payload),
 	}
 
 	u, err := url.Parse(endpoint)
@@ -38,35 +54,21 @@ func tearDown(srv *Server) {
 	}
 }
 
-// Setup handlers for requests from a client
-func getHandlers(t *testing.T) (func(http.ResponseWriter, *http.Request)) {
+func HandlerApi(payload string) (func(http.ResponseWriter, *http.Request)) {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != "GET" {
-			http.Error(writer, "Bad request", http.StatusBadRequest)
-			return
-		}
-		if request.URL.Path == "/tests/events" {
-			getEvents(t, writer, request)
-		} else {
-			http.NotFound(writer, request)
-		}
+		writer.Header().Set("Content-type", "application/json")
+		writer.Write([]byte(payload))
 	}
 }
 
-// Helper emulates the API method on the server
-func getEvents(t *testing.T, writer http.ResponseWriter, request *http.Request) {
-	writer.Header().Set("Content-type", "application/json")
-	writer.Write([]byte(payload))
-}
-
-func checkApi(t *testing.T) {
+func checkApi(t *testing.T, api int) {
 	var (
 		req  *http.Request
 		err  error
 		resp *http.Response
 	)
 	
-	if req, err = http.NewRequest("GET", endpoint, nil); err != nil {
+	if req, err = http.NewRequest("GET", endpoint + apis[api].path, nil); err != nil {
 		t.Error(err)
 		return
 	}
@@ -80,8 +82,7 @@ func checkApi(t *testing.T) {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	bodyString := string(body)
-	fmt.Printf("Result: %s\n", bodyString)
-	if payload != bodyString {
-		t.Errorf("Responce isn't correct: expected %s, got %s", payload, bodyString)
+	if apis[api].payload != bodyString {
+		t.Errorf("Responce isn't correct: expected %s, got %s", apis[api].payload, bodyString)
 	}
 }
